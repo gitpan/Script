@@ -1,7 +1,8 @@
 # Script - (Win32) system administrator`s library
 #           - for login and application startup scripts, etc
 #
-# makarow and demed, 25/09-27/10/2000, 30/07-15/09/2000, 03-05/07/2000,
+# makarow and demed, 15/11/2001, 23-27/09/2001, 26/02/2001,
+# 25/09-27/10/2000, 31/07-15/09/2000, 03-05/07/2000, 
 # 16-17/06/2000, 08/05/2000, 02/04/2000, 25/03/2000, 12-28/02/2000, 
 # 16/12/99, 09/12/99, 05/12/99, 24/11/99, 08/11-19/10/99, 
 # 02/07/99, 28/06/99, 23/06/99, 15/06/99, 01/04/99, 25/03/99, 23/03/99, 
@@ -13,9 +14,9 @@ require 5.000;
 require Exporter;
 use     Carp;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION = '0.52';
+$VERSION = '0.53';
 @ISA = qw(Exporter);
-@EXPORT = qw(CPTranslate Die Echo FileACL FileCompare FileCopy FileCRC FileCwd FileDelete FileEdit FileFind FileGlob FileHandle FileIni FileLnk FileMkDir FileNameMax FileNameMin FileRead FileSize FileSpace FileTrack FileWrite FTPCmd GUIMsg NetUse Pause Platform Print Registry Run RunInf RunKbd SMTPSend StrTime UserEnvInit UserPath);
+@EXPORT = qw(CPTranslate Die Echo FileACL FileCompare FileCopy FileCRC FileCwd FileDelete FileDigest FileEdit FileFind FileGlob FileHandle FileIni FileLnk FileMkDir FileNameMax FileNameMin FileRead FileSize FileSpace FileTrack FileWrite FTPCmd GUIMsg NetUse OrArgs Pause Platform Print Registry Run RunInf RunKbd SMTPSend StrTime UserEnvInit UserPath);
 @EXPORT_OK = qw(FileLog TrAnsi2Oem TrOem2Ansi Try(@) TryHdr);
 %EXPORT_TAGS = ('ALL'=>[@EXPORT,@EXPORT_OK],'OVER'=>[]);
 
@@ -47,7 +48,7 @@ sub import {
 }
 
 
-############################################
+#################
 sub CPTranslate {
  my ($f,$t,@s) =@_; 
  foreach my $v ($f, $t) {
@@ -62,7 +63,7 @@ sub CPTranslate {
 sub TrOem2Ansi {CPTranslate('oem','ansi',@_)}
 sub TrAnsi2Oem {CPTranslate('ansi','oem',@_)}
 
-############################################
+#################
 sub Die {
  my @txt = @_ ? @_ : $@;
  GUIMsg(($Language =~/ru/i ?'Îøèáêà' :'Error'), CPTranslate('oem','ansi',@txt)) 
@@ -71,10 +72,10 @@ sub Die {
  croak(join(' ',@txt))
 }
 
-############################################
+#################
 sub Echo { !$Echo || Print(@_)}
 
-############################################
+#################
 sub FileACL {
 Try eval { local $ErrorDie =2;
  my $opt =($_[0] =~/^\-/i ? shift : '');
@@ -84,11 +85,11 @@ Try eval { local $ErrorDie =2;
  if (!$sub && !grep {$_ !~/^(full|change|read)$/i} values(%acl)) {
     my @c;
     push @c, '/E' if $opt =~/\+/; push @c, '/T' if $opt =~/r/i;
-    push @c, ('/G', map {$_ .':' .uc(substr($acl{$_},0,1))} sort(keys(%acl)));
+    push @c, ('/G', map {(index($_,' ') >=0 ?"\"$_\"" :$_) .':' .uc(substr($acl{$_},0,1))} sort(keys(%acl)));
     push @c, sub{print("Y\n")} if $opt !~/\+/ && %acl;
     return !grep {!Run('cacls.exe',"\"$_\"",'/C',@c)} FileGlob($file);
  }
- Echo('FileACL',$opt,CPTranslate('ansi','oem',@_));
+ Echo('FileACL',$opt,$file,CPTranslate('ansi','oem',@_));
  $sub =sub{1} if !$sub;
  my (%acd, %acf);
  eval('use Win32::FileSecurity');
@@ -123,7 +124,7 @@ Try eval { local $ErrorDie =2;
          )
 },0}
 
-############################################
+#################
 sub FileCompare {
  my $opt =($_[0] =~/^\-/i ? shift : ''); 
  my $ret =eval("use File::Compare; compare(\@_)");
@@ -131,7 +132,7 @@ sub FileCompare {
  else {$ret}
 }
 
-############################################
+#################
 sub FileCopy {
 Try eval { local $ErrorDie =2;
  my $opt =$_[0] =~/^-/i ? shift : '';
@@ -164,7 +165,7 @@ Try eval { local $ErrorDie =2;
  }
 },0}
 
-############################################
+#################
 sub FileCRC {
 Try eval { local $ErrorDie =2;
  my $opt =($_[0] =~/^\-/i ? shift : ''); 
@@ -184,12 +185,12 @@ Try eval { local $ErrorDie =2;
  $crc;
 },0}
 
-############################################
+#################
 sub FileCwd {
  eval('use Cwd; getcwd()')
 }
 
-############################################
+#################
 sub FileDelete {
 Try eval { local $ErrorDie =2;
  Echo('FileDelete',@_);
@@ -203,19 +204,26 @@ Try eval { local $ErrorDie =2;
         }
         elsif (!rmdir($elem)) {
               $ret =0;
-              croak(($Language =~/ru/i ?'“¤ «¥­¨¥' :'Deleting')." FileDelete('$elem'): $!");
+              $opt =~/i/i || croak(($Language =~/ru/i ?'“¤ «¥­¨¥' :'Deleting')." FileDelete('$elem'): $!");
         }
      }
      elsif (-f $elem && !unlink($elem)) {
            $ret =0;
-           croak(($Language =~/ru/i ?'“¤ «¥­¨¥' :'Deleting')." FileDelete('$elem'): $!");
+           $opt =~/i/i || croak(($Language =~/ru/i ?'“¤ «¥­¨¥' :'Deleting')." FileDelete('$elem'): $!");
      }
    }
  }
  $ret
 },0}
 
-############################################
+#################
+sub FileDigest {
+Try eval { local $ErrorDie =2;
+ my $m = substr($_[0] =~/^-/i ? shift : '-MD5', 1);
+ FileHandle($_[0],sub{eval("use Digest::${m};Digest::${m}->new->addfile(*HANDLE)->hexdigest")})
+},0}
+
+#################
 sub FileEdit {
 Try eval { local $ErrorDie =2;
  Echo("FileEdit",@_);
@@ -267,7 +275,7 @@ Try eval { local $ErrorDie =2;
  1;
 },0}
 
-############################################
+#################
 sub FileFind {
 Try eval { local $ErrorDie =2;
  my $opt =($_[0] =~/^\-/i ? shift : '');
@@ -308,12 +316,12 @@ Try eval { local $ErrorDie =2;
  defined($result) ? $result : $ret
 },0}
 
-############################################
+#################
 sub FileGlob {
  $^O eq 'MSWin32' ? FileDosGlob(@_) : glob(@_)
 }
 
-############################################
+#################
 sub FileDosGlob {
  my @ret;
  Try eval { local $ErrorDie =2;
@@ -339,7 +347,7 @@ sub FileDosGlob {
  @ret;
 }
 
-############################################
+#################
 sub FileHandle {
 Try eval { local $ErrorDie =2;
  my ($file,$sub)=@_;
@@ -356,7 +364,7 @@ Try eval { local $ErrorDie =2;
  $ret;
 },''}
 
-############################################
+#################
 sub FileIni {
 Try eval { local $ErrorDie =2;
  my $opt    =$_[0] =~/^-/i ? shift : '';
@@ -441,7 +449,8 @@ Try eval { local $ErrorDie =2;
  !$mod || FileWrite($file,@ini);
 },0}
 
-############################################
+
+#################
 sub FileLnk {
 Try eval { local $ErrorDie =2;
   eval('use Win32::Shortcut');
@@ -479,7 +488,7 @@ Try eval { local $ErrorDie =2;
   $l->Save($f)
 },''}
 
-############################################
+#################
 sub FileLog {
 Try eval {
  return $FileLog if !@_;
@@ -490,7 +499,7 @@ Try eval {
  $FileLog =$_[0];
 },''}
 
-############################################
+#################
 sub FileMkDir {
 Try eval { local $ErrorDie =2;
  my ($dir, $mask) =@_;
@@ -498,7 +507,7 @@ Try eval { local $ErrorDie =2;
  mkdir($dir, $mask || 0777) || croak(($Language =~/ru/i ?'‘®§¤ ­¨¥' :'Creating').' '.join(', ',@_) .": $!");
 },0}
 
-############################################
+#################
 sub FileNameMax {
  my ($dir, $sub) =@_;
  my ($max, $nme) =(undef,'');
@@ -514,7 +523,7 @@ sub FileNameMax {
  wantarray ? ($nme, $max) : $max;
 }
 
-############################################
+#################
 sub FileNameMin {
  my ($dir, $sub) =@_;
  my ($min, $nme) =(undef,'');
@@ -530,7 +539,7 @@ sub FileNameMin {
  wantarray ? ($nme, $min) : $nme;
 }
 
-############################################
+#################
 sub FileRead {
  my $opt =($_[0] =~/^\-/i ? shift : ''); # 'a'rray, 's'calar, 'b'inary
     $opt =$opt .'a' if $opt !~/[asb]/i && wantarray;
@@ -565,7 +574,7 @@ sub FileRead {
  $opt=~/a/i ? @rez : $row
 }
 
-############################################
+#################
 sub FileSize {
  my $opt =($_[0] =~/^\-/i ? shift : '-i');
  my $file=shift;
@@ -573,7 +582,7 @@ sub FileSize {
  FileFind($opt,$file, sub{$_[3] +=$_[0]->[7] if &$sub(@_)})
 }
 
-############################################
+#################
 sub FileSpace {
 Try eval { local $ErrorDie =2;
  my $disk =$_[0] || "c:\\";
@@ -585,7 +594,7 @@ Try eval { local $ErrorDie =2;
  $sze
 },0}
 
-############################################
+#################
 sub FileTrack {
 Try eval { local $ErrorDie =2;
  my $opt =($_[0] =~/^\-/i ? shift : '-'); 
@@ -645,7 +654,7 @@ Try eval { local $ErrorDie =2;
  $chg
 }, ''}
 
-############################################
+#################
 sub FileWrite {
 Try eval { local $ErrorDie =2;
  my $opt  =($_[0] =~/^\-/i ? shift : ''); # 'b'inary
@@ -665,7 +674,7 @@ Try eval { local $ErrorDie =2;
  close(OUT)          || croak(($Language =~/ru/i ?'‡ ªàëâ¨¥' :'Closing')." '>$file': $!");
 },0}
 
-############################################
+#################
 sub FTPCmd {
  my ($host,$usr,$passwd,$cmd);
  if (ref($_[0])) {
@@ -695,7 +704,7 @@ sub FTPCmd {
  $cmd =~/dir|ls/ ? @ret : $ret[0];
 }
 
-############################################
+#################
 sub GUIMsg {
 Try eval { local $ErrorDie =2;
  my $title = @_ >1 ? shift : '';
@@ -723,16 +732,35 @@ Try eval { local $ErrorDie =2;
  eval("MainLoop()");
 },0}
 
-############################################
+#################
 sub NetUse {
- return (Run('net','use',@_,'/Yes'))
-   if $^O eq 'MSWin32' && (!$ENV{OS} || $ENV{OS} =~/Windows_95/i);
  my ($d)=@_;
- eval {`net use $d /delete`} if $_[1] !~/^\/d/i;
+ if    (($_[1] ||'')=~/^\/d/i) {}
+ elsif (!$ENV{OS} || $ENV{OS} =~/Windows_95/i) {return(Run('net','use',@_,'/Yes'))}
+#elsif (eval("use Win32::OLE; $d =Win32::OLE->new('WScript.Network.1'); $d->RemoveNetworkDrive(\$_[0]); $d->MapNetworkDrive(\$_[0],\$_[1]); 1")) {return 1}
+ elsif ( $ENV{OS} && $ENV{OS} =~/Windows_NT/i) {
+       my $r =$_[1];
+       Echo('net','use',@_);
+       eval {`net use $d /delete & net use $d $r 2>&1`};
+       $r =$?>>8;
+       croak(join(' ','net','use',@_).": $r") if $r;
+       return(!$r)
+ }
+ else  {eval {`net use $d /delete`}}
  Run('net','use',@_);
 }
 
-############################################
+#################
+sub OrArgs {
+ my $s =ref($_[0]) ? shift 
+       :index($_[0], '-') ==0 ? eval('sub{' .shift(@_) .' $_}')
+       :eval('sub{' .shift(@_) .'($_)}');
+ local $_;
+ foreach (@_) {return $_ if &$s($_)};
+ undef
+}
+
+#################
 sub Pause {
 Try eval { local $ErrorDie =2;
  if (@_) {print(join(' ',@_))}
@@ -742,7 +770,7 @@ Try eval { local $ErrorDie =2;
  chomp($r); $r
 },''}
 
-############################################
+#################
 sub Platform {
 Try eval { local $ErrorDie =2;
  if    ($_[0] =~/^os$/i) {
@@ -800,7 +828,8 @@ Try eval { local $ErrorDie =2;
    eval('use Net::Domain;Net::Domain::hostdomain')
  }
  elsif ($_[0] =~/^host$/i) { # [gethostbyname('')]->[0]
-   eval('use Sys::Hostname;hostname')   
+   my $r =eval('use Sys::Hostname;hostname');
+   index($r,'.') <0 ? ($r .'.' .eval('use Net::Domain;Net::Domain::hostdomain')) : $r
  }
  elsif ($_[0] =~/^domain|userdomain$/i) {
    $ENV{USERDOMAIN} || ($^O eq 'MSWin32' ? Win32::DomainName() :'')
@@ -823,7 +852,7 @@ Try eval { local $ErrorDie =2;
  else {''}
 },''}
 
-############################################
+#################
 sub Print { 
  if ($Print) {&$Print(@_)}
  else { print(join(' ',@_), "\n");
@@ -831,7 +860,7 @@ sub Print {
  }
 }
 
-############################################
+#################
 sub Registry {
 Try eval { local $ErrorDie =2;
  my $opt =($_[0] =~/^\-/i ? shift : '');
@@ -858,7 +887,7 @@ Try eval { local $ErrorDie =2;
  else       {$$Registry{$key .$dlm .$dlm .$n} =$val}
 },''}
 
-############################################
+#################
 sub Run {
 Try eval { local $ErrorDie =2;
  Echo(@_);  
@@ -878,7 +907,7 @@ Try eval { local $ErrorDie =2;
  !$r
 },0}
 
-############################################
+#################
 sub RunInf {
 Try eval { local $ErrorDie =2;
  my ($f, $s, $b) =@_;
@@ -893,7 +922,7 @@ Try eval { local $ErrorDie =2;
  $cmd
 },0}
 
-############################################
+#################
 sub RunKbd {
 Try eval { local $ErrorDie =2;
   eval("use Win32::GuiTest");
@@ -928,7 +957,7 @@ Try eval { local $ErrorDie =2;
   !defined($ks) || $ks eq '' || Win32::GuiTest::SendKeys($ks) || 1;
 },0}
 
-############################################
+#################
 sub SMTPSend {
 Try eval { local $ErrorDie =2;
  my $host =shift;
@@ -951,7 +980,7 @@ Try eval { local $ErrorDie =2;
  1
 },0}
 
-############################################
+#################
 sub StrTime { 
  my $msk =@_ ==0 || $_[0] =~/^\d+$/i ? ($Language =~/ru/i ? 'dd.mm.yy hh:mm:ss' : 'yyyy-mm-dd hh:mm:ss') : shift;
     $msk ='yyyymmddhhmmss' if !$msk;
@@ -959,7 +988,7 @@ sub StrTime {
  $msk =~s/yyyy/sprintf('%04u',$tme[5] +1900)/ie;
  $tme[5] >=100 ? $msk =~s/yy/sprintf('%04u',$tme[5] +1900)/ie
                : $msk =~s/yy/sprintf('%02u',$tme[5])/ie;
- $msk =~s/mm/sprintf('%02u',$tme[4]+1)/ie;
+ $msk =~s/mm/sprintf('%02u',$tme[4]+1)/e;
  $msk =~s/dd/sprintf('%02u',$tme[3])/ie;
  $msk =~s/hh/sprintf('%02u',$tme[2])/ie;
  $msk =~s/mm/sprintf('%02u',$tme[1])/ie;
@@ -967,7 +996,7 @@ sub StrTime {
  $msk
 }
 
-############################################
+#################
 sub Try (@) {
  my $ret;
  local ($TrySubject, $TryStage) =('','');
@@ -985,7 +1014,7 @@ sub Try (@) {
  }
 }
 
-############################################
+#################
 sub TryEnd {
  return(0) if !$@ && !@_;
  my $ert =@_;
@@ -995,7 +1024,7 @@ sub TryEnd {
  0
 }
 
-############################################
+#################
 sub TryHdr {
  $TrySubject =$_[0] if defined($_[0]);
  $TryStage   =$_[1] if defined($_[1]);
@@ -1003,55 +1032,60 @@ sub TryHdr {
  ''
 }
 
-############################################
+#################
 sub UserEnvInit {
 Try eval { local $ErrorDie =2;
  return(0) if $^O ne 'MSWin32';
- my $opt =$_[0] || 'nh'; $opt ='nhy' if $opt =~/^y$/i;
+ my $opt =shift || 'nh'; $opt ='nhy' if $opt =~/^y$/i;
  my $os  =Platform('os');
 
- if ($opt =~/n/i && ($os !~/Windows_NT/i)){
+ if ($opt =~/n/i && (lc($os) ne 'windows_nt')){
     (!$ENV{OS} || $opt =~/y/i)  && ($ENV{OS} =$os)
-                                && Run("winset","OS=$ENV{OS}");
+                                && Run('winset',"OS=$ENV{OS}");
     (!$ENV{COMPUTERNAME} || $opt =~/y/i) && ($ENV{COMPUTERNAME} =Platform('name'))
-                                         && Run("winset","COMPUTERNAME=$ENV{COMPUTERNAME}");
+                                         && Run('winset',"COMPUTERNAME=$ENV{COMPUTERNAME}");
     (!$ENV{USERNAME} || $opt =~/y/i) && ($ENV{USERNAME} =Platform('user'))
-                                     && Run("winset","USERNAME=$ENV{USERNAME}"); # may be wrong after relogon!
+                                     && Run('winset',"USERNAME=$ENV{USERNAME}"); # may be wrong after relogon!
  }
  return($ENV{USERNAME}) if $opt !~/h/i;
- my $usr     = $ENV{USERNAME} || Platform('user');
- my $home    = "c:\\Home"; return(0) if !-d $home;
- my $homeusr = $home ."\\" .ucfirst(lc($usr));
- my $homewrk =(-d "$home\\Work" ? "$home\\Work" : $home);
- if (!-d $homeusr) {
-    FileMkDir($homeusr, 0700) ||return(0);
-    if ($os =~/Windows_NT/i) {
-       Run('cacls.exe',$homeusr,'/E','/C','/G',"$ENV{USERDOMAIN}\\$usr:F");
-       eval("use Win32::FileSecurity");
-       my %acl; Win32::FileSecurity::Get($homeusr,\%acl);
+
+ $os =lc($os);
+ my $d = OrArgs('-d',@_,'c:\\Home') ||return(0);
+ my $u = $ENV{USERNAME} ||Platform('user');
+ my $du= $d .'\\' .ucfirst(lc($u));
+ my $dw= OrArgs('-d',"$d\\Work",$d);
+ if (!-d $du) {
+    FileMkDir($du, 0700) ||return(0);
+    if ($os eq 'windows_nt') {
+       Run('cacls',$du,'/E','/C','/G',"$ENV{USERDOMAIN}\\$u:F");
+       eval('use Win32::FileSecurity');
+       my %acl; Win32::FileSecurity::Get($du,\%acl);
        foreach my $k (keys(%acl)) {
-         if ($k !~/\\($usr|System|ÑÈÑÒÅÌÀ|Administrator|Àäìèíèñòðàòîð)/i) 
-            {Run('cacls.exe',$homeusr,'/E','/C','/R','"'.($k =~/ [^\\]*\\(.*)/ ? $1 : $k).'"')}
+         if ($k !~/\\($u|System|ÑÈÑÒÅÌÀ|Administrator|Àäìèíèñòðàòîð)/i) 
+            {Run('cacls',$du,'/E','/C','/R','"'.($k =~/ [^\\]*\\(.*)/ ? $1 : $k).'"')}
        }
     }
  }
- return(1) if $opt !~/y/i && (($ENV{HOME}||'?')=~/\\$usr$/i);
- eval ("use Win32::TieRegistry;
-        \$\$Registry{'CUser\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Explorer\\\\User Shell Folders\\\\\\\\Personal'}
-        = (lc(\$os) ne 'windows_nt') && !\$\$Registry{'LMachine\\\\Network\\\\Logon\\\\\\\\UserProfiles'}
-        ? \$homewrk : \$homeusr");
- if    ($ENV{HOME} && lc($ENV{HOME}) eq lc($homeusr)) {}
- elsif (!($ENV{HOME} =$homeusr)) {}
- elsif ($os =~/Windows_NT/i)     {Run('setx','HOME',$homeusr)} # eval("use Win32::TieRegistry;\$\$Registry{'CUser\\\\Environment\\\\\\\\HOME'}=\$homeusr")}
- elsif ($^O eq 'MSWin32')        {Run('winset',"HOME=$homeusr")}
-
+ my $pu= $ENV{USERPROFILE} ||UserPath();
+    $pu= eval{Win32::GetShortPathName($pu)} ||$pu;
+ return(1) if $opt !~/y/i && (lc($ENV{HOME}||'?') eq lc($pu));
+ my $ru='CUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders\\\\';
+ my $rp=$os ne 'windows_nt' && !Registry('LMachine\\Network\\Logon\\\\UserProfiles') ? $dw : $du;
+ Registry($ru .'Personal',$rp);
+ Registry($ru .'My Pictures',$rp .'\\My Pictures');
+ $pu =~s/[\\]/\//g if $os eq 'windows_nt';
+ if (lc($ENV{HOME}||'?') ne lc($pu)) {
+    $ENV{HOME} =$pu;
+    if   ($os eq 'windows_nt'){Run('setx','HOME',$ENV{HOME})}
+    else {Run('winset','HOME='.$ENV{HOME})}
+ }
  1;
 },0}
 
-############################################
+#################
 sub UserPath {
 Try eval { local $ErrorDie =2;
- my ($u,$pd) =@_;
+ my ($u,$pd) =($_[0]||'', $_[1]||'');
  if ($^O ne 'MSWin32') {($ENV{HOME} || '') .($pd ? '/' .$pd :'')}
  else {
     my %syn =('application data'=>'AppData'

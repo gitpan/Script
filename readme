@@ -27,8 +27,8 @@ COPYRIGHT
 	
 PREREQUISITES
 
-	Developed and tested with Active Perl 5.005 (builds 508,509,522).
-	Function 'GUIMsg' developed and tested with Tk 800.012, 800.013, 
+	Developed and tested with Active Perl 5.005 (builds 508,509,522,623).
+	Function 'GUIMsg' developed and tested with Tk 800.012,800.013,800.022
 	800.019.
 
 HOW TO BUILD AND INSTALL

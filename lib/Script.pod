@@ -81,7 +81,7 @@ Variable $@ or $Error may be used to distinguish erroneous empty values from nor
 
 (see L<Exporter>)
 
-@EXPORT = qw(CPTranslate Die Echo FileACL FileCompare FileCopy FileCRC FileCwd FileDelete FileEdit FileFind FileGlob FileHandle FileIni FileLnk FileMkDir FileNameMax FileNameMin FileRead FileSize FileSpace FileTrack FileWrite FTPCmd GUIMsg NetUse Pause Platform Print Registry Run RunInf RunKbd SMTPSend StrTime UserEnvInit UserPath);
+@EXPORT = qw(CPTranslate Die Echo FileACL FileCompare FileCopy FileCRC FileCwd FileDelete FileDigest FileEdit FileFind FileGlob FileHandle FileIni FileLnk FileMkDir FileNameMax FileNameMin FileRead FileSize FileSpace FileTrack FileWrite FTPCmd GUIMsg NetUse OrArgs Pause Platform Print Registry Run RunInf RunKbd SMTPSend StrTime UserEnvInit UserPath);
 
 @EXPORT_OK = qw(FileLog TrAnsi2Oem TrOem2Ansi Try(@) TryHdr);
 
@@ -96,6 +96,7 @@ C<Try>, C<TryHdr>
 =item File functions
 
 C<FileACL>, C<FileCompare>, C<FileCopy>, C<FileCRC>, C<FileCwd>, C<FileDelete>, 
+C<FileDigest>, 
 C<FileEdit>, C<FileFind>, C<FileGlob>, C<FileHandle>, C<FileIni>,
 C<FileLnk>,
 C<FileLog>,
@@ -113,7 +114,7 @@ C<Registry>
 
 =item Run & Misc functions
 
-C<Run>, C<RunInf>, C<RunKbd>, C<NetUse>, C<Platform>, C<UserEnvInit>, C<UserPath>
+C<OrArgs>, C<Run>, C<RunInf>, C<RunKbd>, C<NetUse>, C<Platform>, C<UserEnvInit>, C<UserPath>
 
 =item Mail functions
 
@@ -202,6 +203,11 @@ Calculates CRC of file or 0 if error. Uses L<Compress::Zlib|Compress/Zlib>.
 Options: 'adler' or 'adler32' or '-a adler', 'crc32' (default).
 
 
+=item FileCwd () -> cwd
+
+eval('use Cwd; getcwd()')
+
+
 =item FileDelete ( ?'-r', fileMask,... ) -> success
 
 Deletes files and directories fileMask. Uses C<FileGlob>.
@@ -209,9 +215,10 @@ Deletes files and directories fileMask. Uses C<FileGlob>.
 Options: 'r'ecurse subdirectories.
 
 
-=item FileCwd () -> cwd
+=item FileDigest ( ?-digest, filename ) -> digest
 
-eval('use Cwd; getcwd()')
+Returns hex digest (default MD5) of file given.
+Uses L<Digest::MD5|Digest/MD5>.
 
 
 =item FileEdit ( ?'-im', file, ?fileTo, sub(section, @variables)) -> success
@@ -428,6 +435,16 @@ Executes Windows commands 'net use disk /d' and 'net use disk resource'.
 Uses C<Run>
 
 
+=item OrArgs (sub, arg,...) -> succeeded arg
+
+=item OrArgs (function string, arg,...) -> succeeded arg
+
+Evaluates sub or function given with local $_ set to each arg
+until success. Returns successful arg. 
+Example: OrArgs('-d','c:/home','c:/users') returns first
+existed directory.
+
+
 =item Pause ( ?text,... ) -> response
 
 Prints given text list delimited with blanks and terminated with "\n", 
@@ -521,7 +538,8 @@ Uses L<Net::SMTP|Net/SMTP>.
 =item StrTime ( ?mask, ?@time ) -> string
 
 Converts given date-time array into string using given mask.
-Default mask is 'dd.mm.yy hh:mm:ss', constructs are 'yyyy', 'yy', 'mm', 'dd', 'hh', 'ss'.
+Default mask is 'yyyy-mm-dd hh:mm:ss' or 'dd.mm.yy hh:mm:ss', constructs are 
+'yyyy', 'yy', 'mm', 'dd', 'hh', 'mm' or 'MM', 'ss'.
 Default time is 'localtime(time)'.
 
 
@@ -545,7 +563,7 @@ May be used only inside C<Try>(sub{},...).
 
 
 
-=item UserEnvInit ( ?'-nhy' )
+=item UserEnvInit ( ?'-nhy', ?documents dirs )
 
 Initiates user`s environment on Win32.
 Uses L<Win32::TieRegistry|Win32/TieRegistry>, C<cacls>, reskit utilities C<winset>, C<setx>.
@@ -555,10 +573,11 @@ Default options are '-nhy', option '-y' redefines environment variables when the
 Option 'n' sets on Win95 environment variables used on WinNT: 'OS', 'COMPUTERNAME', 'USERNAME'.
 
 Option 'h' works if 'c:/Home' directory exists. It creates directory 
-'c:/Home/Username' if it not exists (WinNT ACL setting applied), sets it to
-'HOME' environment variable, sets value for $$Registry{'CUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders\\\\Personal'}
-to 'c:/Home/Username' or 'c:/Home/Work' (for systems with single user profile).
-
+'c:/Home/Username' if it not exists (WinNT ACL setting applied), 
+sets value for $$Registry{'CUser\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders\\\\Personal'}
+to 'c:/Home/Username' or 'c:/Home/Work' (for systems with single user profile),
+sets 'My Pictures' based on 'Personal',
+sets 'HOME' environment variable to $ENV{USERPROFILE}
 
 
 =item UserPath (user) -> home dir
@@ -572,12 +591,80 @@ Subdir on Win32 may be 'Desktop', 'Personal','Programs','Start Menu','Startup',
 and other Win32 registry names under 'Explorer / Shell Folders'.
 If Win32 subdir is not found for user, 'all users' profile' is used, and vice versa.
 
+=back
+
+
+
+
+=head1 VERSION
+
+
+=head2 15/11/2001
+
+=over
+
+=item Changed
+
+C<NetUse> on Windows NT some optimization.
+
+C<Platform>('host') corrected to return full host name with domain.
+If L<Sys::Hostname|Sys/Hostname> returns string without dot signs,
+L<Net::Domain|Net/Domain> is catenated.
+
+
+=back
+
+
+=head2 23/09/2001 - 27/09/2001
+
+=over
+
+=item New
+
+C<FileDigest>
+
+C<OrArgs>
+
+Module size reduced as sub delimiters
+
+
+=item Changed
+
+C<FileACL> - blank names are now quoted in 'cacls' run
+
+C<UserEnvInit> - $ENV{HOME} changed to ENV{USERPROFILE}, 'My Pictures' set,
+alternative documents dirs may be specified as parameters
+
+C<UserPath> - all arguments are optional
+
+
+=item Problems
+
+C<CPTranslate> and C<StrTime> does not use current locale and supports only Russian.
+
 
 =back
 
 
 
-=head1 VERSION
+=head2 24/11/2000 - 26/02/2001
+
+=over
+
+=item Changed
+
+C<FileACL> - echo format changed.
+
+C<FileDelete> - '-i'gnore option added.
+
+C<NetUse> - WinNT specific code added.
+
+C<StrTime> - 'mm' is month placeholder, 'MM' or second 'mm' is minutes placeholder.
+
+
+
+=back
+
 
 
 
@@ -626,9 +713,9 @@ C<FileCwd>
 
 C<FileLnk>
 
-C<RunKbd>
-
 C<RunInf>
+
+C<RunKbd>
 
 C<UserPath>
 
@@ -662,6 +749,7 @@ C<Platform> - new parameter 'windir'.
 
 
 =back
+
 
 
 =head2 16-17/06/2000, 03-05/07/2000, FileTrack and some corrections
