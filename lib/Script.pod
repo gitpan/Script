@@ -81,9 +81,9 @@ Variable $@ or $Error may be used to distinguish erroneous empty values from nor
 
 (see L<Exporter>)
 
-@EXPORT = qw(CPTranslate Die FileACL FileCompare FileCopy FileCRC FileCwd FileDelete FileEdit FileFind FileGlob FileHandle FileIni FileLnk FileMkDir FileNameMax FileNameMin FileRead FileSize FileSpace FileTrack FileWrite FTPCmd GUIMsg NetUse Pause Platform Registry Run RunInf RunKbd SMTPSend StrTime UserEnvInit UserPath);
+@EXPORT = qw(CPTranslate Die Echo FileACL FileCompare FileCopy FileCRC FileCwd FileDelete FileEdit FileFind FileGlob FileHandle FileIni FileLnk FileMkDir FileNameMax FileNameMin FileRead FileSize FileSpace FileTrack FileWrite FTPCmd GUIMsg NetUse Pause Platform Print Registry Run RunInf RunKbd SMTPSend StrTime UserEnvInit UserPath);
 
-@EXPORT_OK = qw(Echo FileLog Print TrAnsi2Oem TrOem2Ansi Try TryHdr);
+@EXPORT_OK = qw(FileLog TrAnsi2Oem TrOem2Ansi Try(@) TryHdr);
 
 %EXPORT_TAGS = ('ALL'=>[@EXPORT,@EXPORT_OK], 'OVER'=>[]);
 
@@ -192,7 +192,7 @@ Copies fromFileMask to toPath. On 'MSWin32' uses C<xcopy> with switches H, R, K,
 Options: 'r'ecurse subdirectories,
 'd'irectory target hint,
 'f'ile target hint,
-'i'gnore errors - continue coping.
+'i'gnore errors - continue copying.
 
 
 =item FileCRC (?'-adler', file) -> CRC
@@ -243,8 +243,8 @@ within one transaction of FileFind call.
 Uses C<FileGlob>
 
 Options: 'i'gnore stat errors, '!' - not, 'd'irectories,
-'l'ow before deep scan,
-'r'ecurse directories.
+'l'ow before deep scan, 'm'ountpoints,
+'r'ecurse directories, 's'ymlinks.
 
 Parameters of sub are local $_ with full current filename, $_[0] with
 reference to @stat array, $_[1] with path, $_[2] with filename, 
@@ -259,7 +259,7 @@ commands traditionally not. Set of FileFind options may be extended in future,
 but existing programs should be preserved, and so FileFind options should be
 negative instead of traditionally positive options of other commands.
 Based on FileFind functions are restricted, not using all possible FileFind
-features. All functions may be called from comprehensive FileFind to get
+features. All functions may be called from comprehensive C<FileFind> to get
 all features.
 
 
@@ -478,6 +478,7 @@ Type may be 'REG_SZ' (default), 'REG_EXPAND_SZ', 'REG_BINARY', 'REG_MULTI_SZ', '
 
 Runs specified command with L<system|perlfunc/system> call, returns !($? || $!).
 Shell is used as in L<system|perlfunc/system> call - if command and arguments are in the same string.
+Last argument may be sub to print to program called.
 
 
 =item RunInf (filename, ?section, ?reboot mode) -> run string
@@ -577,6 +578,42 @@ If Win32 subdir is not found for user, 'all users' profile' is used, and vice ve
 
 
 =head1 VERSION
+
+
+
+=head2 25/09-27/10/2000
+
+=over
+
+=item Changed
+
+C<Echo>, C<Print> - are exported by default (moved from @EXPORT_OK to @EXPORT).
+
+C<FileACL> - processed files are printed, not echoed; uses 'cacls.exe' when possible.
+
+C<FileCopy> - '-d' removed from 'cp'.
+
+C<FileCopy> - uses C<Run>(...sub{}).
+
+C<FileGlob> - support for filenames with '()'.
+
+C<FileLog> - $SIG{__DIE__} dies if !defined($^S) too.
+
+C<FileSpace> - digit grouping symbol may be ','.
+
+C<FileTrack> - internal filehandle renamed from 'LOG' to 'TRACK'.
+
+C<NetUse> - invokes 'net use ... /Yes' on Win95.
+
+C<Registry> - supports unnamed registry values.
+
+C<Run> - last argument may be sub to print to program called.
+
+C<UserPath> - excludes blanks at the end of path as may be on WinNT.
+
+
+=back
+
 
 
 =head2 31/07-15/09/2000
