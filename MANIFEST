@@ -1,0 +1,5 @@
+MANIFEST
+Makefile.PL
+readme
+lib/Script.pm
+lib/Script.pod
